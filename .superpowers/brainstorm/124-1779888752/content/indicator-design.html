@@ -1,0 +1,55 @@
+<h2>方案 C 细化：位置 & 交互</h2>
+<p class="subtitle">指示器放在循环模式和进度条之间</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">点击指示器 → 弹出迷你列表</div>
+    <div class="mockup-body" style="padding:12px;">
+      <div style="background:rgba(24,24,32,0.9);border-radius: 8px;padding: 8px 10px;color:rgba(220,220,235,0.8);font-size:11px;display:flex;align-items:center;gap:6px;">
+        <span style="opacity:0.6;">⏮</span>
+        <span style="opacity:0.8;">▶</span>
+        <span style="opacity:0.6;">⏭</span>
+        <span style="opacity:0.6;">🔁</span>
+        <span style="background:rgba(255,255,255,0.1);border-radius:6px;padding:2px 7px;font-size:10px;cursor:pointer;">3 / 12 ▾</span>
+        <div style="flex:1;height:3px;background:rgba(255,255,255,0.15);border-radius:2px;"></div>
+        <span style="font-family:monospace;font-size:10px;min-width:62px;">1:23 / 4:05</span>
+        <span style="opacity:0.6;">🔊</span>
+      </div>
+      <!-- Popup mini list -->
+      <div style="margin-top:4px;background:rgba(30,30,40,0.95);border-radius:6px;padding:4px;font-size:10px;color:rgba(220,220,235,0.8);border:1px solid rgba(255,255,255,0.1);max-width:200px;">
+        <div style="opacity:0.5;padding:2px 6px;">1. 红山果 - 安与骑兵</div>
+        <div style="opacity:0.5;padding:2px 6px;">2. 刚好遇见你 - 李玉刚</div>
+        <div style="background:rgba(255,255,255,0.12);border-radius:3px;padding:2px 6px;">▶ 3. 一万个舍不得 - 庄心妍&祁隆</div>
+        <div style="padding:2px 6px;">4. 小苹果 - 筷子兄弟</div>
+        <div style="padding:2px 6px;">5. 最炫民族风 - 凤凰传奇</div>
+        <div style="opacity:0.3;padding:2px 6px;">... 还有 7 首</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">交互规则</div>
+    <div class="mockup-body" style="padding:12px;color:rgba(220,220,235,0.8);font-size:11px;">
+      <div style="margin-bottom:10px;">
+        <span style="font-weight:600;">左键点击</span>
+        <span style="opacity:0.6;">→ 弹出迷你列表，点击曲目切换</span>
+      </div>
+      <div style="margin-bottom:10px;">
+        <span style="font-weight:600;">滚轮</span>
+        <span style="opacity:0.6;">→ 上一首 / 下一首</span>
+      </div>
+      <div style="margin-bottom:10px;">
+        <span style="font-weight:600;">hover</span>
+        <span style="opacity:0.6;">→ tooltip 显示完整歌名</span>
+      </div>
+      <div style="margin-bottom:10px;">
+        <span style="font-weight:600;">当前曲目</span>
+        <span style="opacity:0.6;">→ 高亮 + ▶ 前缀</span>
+      </div>
+      <div style="margin-bottom:10px;">
+        <span style="font-weight:600;">列表太长</span>
+        <span style="opacity:0.6;">→ 最多显示 8 首，超出显示 "... 还有 N 首"</span>
+      </div>
+    </div>
+  </div>
+</div>

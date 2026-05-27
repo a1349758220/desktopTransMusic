@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx superpowers-zh *)",
+      "Bash(pip install *)",
+      "Bash(pip show *)",
+      "Bash(python -c \"import PySide6; print\\('PySide6 OK'\\)\")",
+      "Bash(python -c \"import pygame; print\\('pygame OK'\\)\")",
+      "Bash(python -c \"import mutagen; print\\('mutagen OK'\\)\")",
+      "Bash(python main.py)",
+      "Bash(python -u main.py)",
+      "Bash(python -u test_transparent.py)",
+      "Bash(python -u -c ' *)",
+      "Bash(python -c \"from PySide6.QtGui import QIcon; from PySide6.QtCore import QSize; print\\('OK'\\)\")",
+      "Bash(python test_svg.py)",
+      "Bash(pyinstaller --windowed --name \"MiniPlayer\" --add-data \"resource;resource\" --hidden-import pygame --hidden-import mutagen --clean main.py)",
+      "Bash(python -m venv --help)",
+      "Bash(python -m venv .venv)",
+      "Bash(pip config *)",
+      "Read(//c/Users/Suen ZtaYrua/.config/pip/**)",
+      "Read(//c/Users/Suen ZtaYrua/pip/**)",
+      "Read(//c/Users/Suen ZtaYrua/AppData/Roaming/pip/**)",
+      "Bash(D:\\\\gitWorkSpace\\\\desktopTransMusic\\\\.claude\\\\skills\\\\brainstorming\\\\scripts\\\\start-server.sh *)",
+      "Bash(D:\\\\gitWorkSpace\\\\desktopTransMusic\\\\.claude\\\\skills\\\\brainstorming\\\\scripts\\\\stop-server.sh *)",
+      "Bash(git init *)",
+      "Bash(cat)",
+      "Bash(git add *)"
+    ]
+  }
+}

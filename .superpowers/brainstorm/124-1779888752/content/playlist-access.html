@@ -1,0 +1,76 @@
+<h2>你希望如何查看播放列表？</h2>
+<p class="subtitle">核心矛盾：保持 400×50 的轻量迷你条 vs 可视化播放列表信息</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>内联扩展</h3>
+      <p>点击按钮后迷你条向下展开，显示可滚动的播放列表，收起时恢复 50px 高度。始终在一个窗体内。</p>
+      <div class="mockup" style="margin-top:8px;">
+        <div class="mockup-header">展开后的样子（概念）</div>
+        <div class="mockup-body">
+          <div style="background:rgba(24,24,32,0.9);border-radius: 8px;padding: 8px 12px;color:rgba(220,220,235,0.8);font-size:11px;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span>⏮</span><span>▶</span><span>⏭</span>
+              <div style="flex:1;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;"></div>
+              <span style="font-family:monospace;font-size:10px;">1:23 / 4:05</span>
+              <span>🔊</span>
+            </div>
+            <div style="margin-top:6px;border-top:1px solid rgba(255,255,255,0.1);padding-top:6px;max-height:120px;overflow-y:auto;">
+              <div style="background:rgba(255,255,255,0.12);padding:3px 8px;border-radius:3px;margin-bottom:2px;">▶ 红山果 - 安与骑兵</div>
+              <div style="padding:3px 8px;margin-bottom:2px;">2. 一万个舍不得 - 庄心妍&amp;祁隆</div>
+              <div style="padding:3px 8px;margin-bottom:2px;">3. 刚好遇见你 - 李玉刚</div>
+              <div style="padding:3px 8px;">4. 小苹果 - 筷子兄弟</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>独立浮窗</h3>
+      <p>迷你条旁边弹出独立小窗口显示播放列表，可单独关闭/拖动。主窗体始终保持 400×50 不变。</p>
+      <div class="mockup" style="margin-top:8px;">
+        <div class="mockup-header">概念示意</div>
+        <div class="mockup-body">
+          <div style="display:flex;gap:10px;align-items:flex-start;">
+            <div style="background:rgba(24,24,32,0.9);border-radius: 8px;padding: 6px 10px;font-size:10px;color:rgba(220,220,235,0.7);white-space:nowrap;flex-shrink:0;">
+              ⏮ ▶ ⏭ ⏸ ▬▬▬ 1:23 🔊
+            </div>
+            <div style="background:rgba(24,24,32,0.95);border-radius: 8px;padding: 8px;font-size:11px;color:rgba(220,220,235,0.8);border:1px solid rgba(255,255,255,0.1);">
+              <div style="font-weight:600;margin-bottom:4px;">播放列表 (4)</div>
+              <div style="color:rgba(255,255,255,0.6);">▶ 红山果 - 安与骑兵</div>
+              <div style="margin-left:12px;">2. 一万个舍不得</div>
+              <div style="margin-left:12px;">3. 刚好遇见你</div>
+              <div class="placeholder" style="margin-top:4px;height:20px;">可独立拖动</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>微型指示器</h3>
+      <p>迷你条上只显示 "3/12" 计数，不展示完整播放列表。点击可快捷切歌。</p>
+      <div class="mockup" style="margin-top:8px;">
+        <div class="mockup-header">迷你条上的变化（微调）</div>
+        <div class="mockup-body">
+          <div style="background:rgba(24,24,32,0.9);border-radius: 8px;padding: 8px 12px;color:rgba(220,220,235,0.8);font-size:11px;display:flex;align-items:center;gap:6px;">
+            <span>⏮</span><span>▶</span><span>⏭</span><span>⏸</span>
+            <div style="flex:1;height:3px;background:rgba(255,255,255,0.1);border-radius:2px;"></div>
+            <span style="font-family:monospace;font-size:10px;">1:23 / 4:05</span>
+            <span style="background:rgba(255,255,255,0.08);border-radius:6px;padding:2px 8px;font-size:10px;">3 / 12 ▾</span>
+            <span>🔊</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

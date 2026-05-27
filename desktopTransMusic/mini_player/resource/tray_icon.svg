@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Note head (ellipse) -->
+  <ellipse cx="7" cy="22" rx="5" ry="4" fill="#C8C8D7" transform="rotate(-15 7 22)"/>
+  <!-- Stem -->
+  <rect x="11" y="4" width="2.5" height="18" rx="1" fill="#C8C8D7"/>
+  <!-- Flag -->
+  <path d="M13.5 4 C20 8 22 12 22 14" stroke="#C8C8D7" stroke-width="2" fill="none" stroke-linecap="round"/>
+</svg>

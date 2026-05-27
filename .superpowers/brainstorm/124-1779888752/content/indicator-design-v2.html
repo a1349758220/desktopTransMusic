@@ -1,0 +1,40 @@
+<h2>最终方案确认</h2>
+<p class="subtitle">指示器位于循环模式按钮与进度条之间</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">迷你条最终布局</div>
+    <div class="mockup-body" style="padding:10px;">
+      <div style="background:rgba(24,24,32,0.9);border-radius: 8px;padding: 8px 10px;color:rgba(220,220,235,0.8);font-size:11px;display:flex;align-items:center;gap:6px;">
+        <span style="opacity:0.5;">⏮</span>
+        <span style="opacity:0.8;">▶</span>
+        <span style="opacity:0.5;">⏭</span>
+        <span style="opacity:0.5;">🔁</span>
+        <span style="background:rgba(255,255,255,0.1);border-radius:6px;padding:2px 7px;font-size:10px;">3 / 12 ▾</span>
+        <div style="flex:1;height:3px;background:rgba(255,255,255,0.15);border-radius:2px;"></div>
+        <span style="font-family:monospace;font-size:10px;min-width:62px;">1:23 / 4:05</span>
+        <span style="opacity:0.5;">🔊</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">最终交互规则</div>
+    <div class="mockup-body" style="padding:12px;color:rgba(220,220,235,0.8);font-size:11px;line-height:2;">
+      <div>✅ <b>左键点击</b> → 弹出迷你列表</div>
+      <div>✅ <b>点击列表中的曲目</b> → 切换播放</div>
+      <div>✅ <b>hover</b> → tooltip 显示当前歌名</div>
+      <div>✅ <b>点击空白处</b> → 列表消失</div>
+      <div style="opacity:0.3;text-decoration:line-through;">❌ 滚轮切歌（已移除，防止误触）</div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:12px;">
+  <h3>涉及改动</h3>
+  <div style="font-size:11px;color:rgba(220,220,235,0.7);line-height:2;">
+    <div>• <code>player.py</code> — 暴露 <code>playlist</code>、<code>current_index</code>（已有），新增 <code>jump_to(index)</code> 方法</div>
+    <div>• <code>mini_bar.py</code> — 新增可点击的 <code>TrackIndicator</code> 标签 + 弹出式 <code>TrackPopup</code> 列表</div>
+    <div>• 无新文件，无需新增依赖</div>
+  </div>
+</div>
