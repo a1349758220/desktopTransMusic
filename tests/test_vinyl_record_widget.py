@@ -61,7 +61,7 @@ class VinylRecordWidgetTests(unittest.TestCase):
     def test_vinyl_widget_has_expected_fixed_size(self):
         widget = VinylRecordWidget()
 
-        self.assertEqual(widget.width(), 42)
+        self.assertEqual(widget.width(), 50)
         self.assertEqual(widget.height(), 44)
 
 

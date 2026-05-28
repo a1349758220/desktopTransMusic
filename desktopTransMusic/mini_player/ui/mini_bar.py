@@ -128,7 +128,7 @@ class VinylRecordWidget(QWidget):
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
-        self.setFixedSize(42, 44)
+        self.setFixedSize(50, 44)
         self._angle = 0.0
         self._gradient_colors = self.gradient_for_key("")
         self._playing = False
@@ -204,8 +204,12 @@ class VinylRecordWidget(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         pivot = QPointF(27, 5)
-        tip = QPointF(31, 24) if self._playing else QPointF(40, 13)
-        elbow = QPointF(30, 14) if self._playing else QPointF(34, 10)
+        if self._playing:
+            elbow = QPointF(30, 14)
+            tip = QPointF(31, 24)
+        else:
+            elbow = QPointF(34.8, 10.4)
+            tip = QPointF(41.6, 17.7)
 
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor(0, 0, 0, 70))
