@@ -104,13 +104,26 @@ class VinylRecordWidget(QWidget):
     """Tiny record player visual for the 400x50 mini bar."""
 
     GRADIENT_PALETTES = (
-        (QColor(255, 66, 91), QColor(255, 126, 190)),
-        (QColor(255, 91, 176), QColor(153, 94, 255)),
-        (QColor(154, 92, 255), QColor(67, 136, 255)),
-        (QColor(58, 130, 255), QColor(44, 221, 230)),
-        (QColor(40, 210, 190), QColor(103, 235, 124)),
-        (QColor(255, 151, 71), QColor(245, 58, 93)),
-        (QColor(255, 214, 86), QColor(255, 127, 61)),
+        (QColor(255, 45, 85), QColor(255, 126, 190)),
+        (QColor(255, 78, 205), QColor(123, 64, 255)),
+        (QColor(162, 83, 255), QColor(42, 123, 255)),
+        (QColor(35, 108, 255), QColor(34, 224, 238)),
+        (QColor(0, 207, 178), QColor(112, 245, 92)),
+        (QColor(255, 142, 48), QColor(238, 42, 83)),
+        (QColor(255, 222, 68), QColor(255, 111, 35)),
+        (QColor(29, 233, 182), QColor(0, 131, 176)),
+        (QColor(250, 82, 82), QColor(255, 199, 95)),
+        (QColor(87, 95, 255), QColor(255, 79, 216)),
+        (QColor(0, 191, 255), QColor(255, 255, 92)),
+        (QColor(131, 255, 107), QColor(25, 84, 255)),
+        (QColor(255, 64, 129), QColor(0, 229, 255)),
+        (QColor(255, 171, 0), QColor(124, 77, 255)),
+        (QColor(118, 255, 3), QColor(255, 64, 129)),
+        (QColor(0, 230, 118), QColor(255, 214, 0)),
+        (QColor(68, 138, 255), QColor(255, 82, 82)),
+        (QColor(213, 0, 249), QColor(0, 230, 118)),
+        (QColor(255, 234, 0), QColor(41, 98, 255)),
+        (QColor(255, 61, 0), QColor(0, 200, 255)),
     )
 
     def __init__(self, parent: QWidget | None = None):

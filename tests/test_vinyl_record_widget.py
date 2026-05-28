@@ -33,6 +33,18 @@ class VinylRecordWidgetTests(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(len(first), 2)
 
+    def test_gradient_palette_has_more_visual_variety(self):
+        self.assertGreaterEqual(len(VinylRecordWidget.GRADIENT_PALETTES), 16)
+
+    def test_gradient_palette_pairs_have_distinct_colors(self):
+        for start, end in VinylRecordWidget.GRADIENT_PALETTES:
+            distance = (
+                abs(start.red() - end.red())
+                + abs(start.green() - end.green())
+                + abs(start.blue() - end.blue())
+            )
+            self.assertGreaterEqual(distance, 130)
+
     def test_set_track_key_updates_gradient_state(self):
         widget = VinylRecordWidget()
 
