@@ -28,5 +28,12 @@ class CoverArtTests(unittest.TestCase):
         self.assertIsNone(cover)
 
 
+class PlayerCoverSignalTests(unittest.TestCase):
+    def test_player_exposes_cover_changed_signal(self):
+        from core.player import MusicPlayer
+
+        self.assertTrue(hasattr(MusicPlayer, "cover_changed"))
+
+
 if __name__ == "__main__":
     unittest.main()

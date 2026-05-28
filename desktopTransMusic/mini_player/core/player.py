@@ -71,6 +71,7 @@ class MusicPlayer(QObject):
     position_changed = Signal(int)        # ms
     duration_changed = Signal(int)        # ms
     track_changed = Signal(str, str)      # title, artist
+    cover_changed = Signal(object)        # bytes | None
     playback_state_changed = Signal(bool) # True=playing
     repeat_mode_changed = Signal(int)     # REPEAT_ALL / REPEAT_SINGLE / SHUFFLE
 
@@ -227,6 +228,7 @@ class MusicPlayer(QObject):
         # Meta
         title, artist = _read_metadata(filepath)
         self.track_changed.emit(title, artist)
+        self.cover_changed.emit(_read_cover_art(filepath))
 
         # Duration
         try:
