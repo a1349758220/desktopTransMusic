@@ -31,19 +31,25 @@ class VinylRecordWidgetTests(unittest.TestCase):
         second = VinylRecordWidget.gradient_for_key(r"C:\Music\a.mp3")
 
         self.assertEqual(first, second)
-        self.assertEqual(len(first), 2)
+        self.assertEqual(len(first), 3)
 
     def test_gradient_palette_has_more_visual_variety(self):
         self.assertGreaterEqual(len(VinylRecordWidget.GRADIENT_PALETTES), 16)
 
     def test_gradient_palette_pairs_have_distinct_colors(self):
-        for start, end in VinylRecordWidget.GRADIENT_PALETTES:
-            distance = (
+        for start, middle, end in VinylRecordWidget.GRADIENT_PALETTES:
+            distances = (
+                abs(start.red() - middle.red())
+                + abs(start.green() - middle.green())
+                + abs(start.blue() - middle.blue()),
+                abs(middle.red() - end.red())
+                + abs(middle.green() - end.green())
+                + abs(middle.blue() - end.blue()),
                 abs(start.red() - end.red())
                 + abs(start.green() - end.green())
-                + abs(start.blue() - end.blue())
+                + abs(start.blue() - end.blue()),
             )
-            self.assertGreaterEqual(distance, 130)
+            self.assertGreaterEqual(min(distances), 130)
 
     def test_set_track_key_updates_gradient_state(self):
         widget = VinylRecordWidget()

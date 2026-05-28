@@ -104,26 +104,26 @@ class VinylRecordWidget(QWidget):
     """Tiny record player visual for the 400x50 mini bar."""
 
     GRADIENT_PALETTES = (
-        (QColor(255, 45, 85), QColor(255, 126, 190)),
-        (QColor(255, 78, 205), QColor(123, 64, 255)),
-        (QColor(162, 83, 255), QColor(42, 123, 255)),
-        (QColor(35, 108, 255), QColor(34, 224, 238)),
-        (QColor(0, 207, 178), QColor(112, 245, 92)),
-        (QColor(255, 142, 48), QColor(238, 42, 83)),
-        (QColor(255, 222, 68), QColor(255, 111, 35)),
-        (QColor(29, 233, 182), QColor(0, 131, 176)),
-        (QColor(250, 82, 82), QColor(255, 199, 95)),
-        (QColor(87, 95, 255), QColor(255, 79, 216)),
-        (QColor(0, 191, 255), QColor(255, 255, 92)),
-        (QColor(131, 255, 107), QColor(25, 84, 255)),
-        (QColor(255, 64, 129), QColor(0, 229, 255)),
-        (QColor(255, 171, 0), QColor(124, 77, 255)),
-        (QColor(118, 255, 3), QColor(255, 64, 129)),
-        (QColor(0, 230, 118), QColor(255, 214, 0)),
-        (QColor(68, 138, 255), QColor(255, 82, 82)),
-        (QColor(213, 0, 249), QColor(0, 230, 118)),
-        (QColor(255, 234, 0), QColor(41, 98, 255)),
-        (QColor(255, 61, 0), QColor(0, 200, 255)),
+        (QColor(255, 45, 85), QColor(255, 126, 190), QColor(123, 64, 255)),
+        (QColor(255, 78, 205), QColor(255, 171, 0), QColor(123, 64, 255)),
+        (QColor(162, 83, 255), QColor(42, 123, 255), QColor(0, 245, 180)),
+        (QColor(35, 108, 255), QColor(0, 229, 255), QColor(118, 255, 3)),
+        (QColor(0, 207, 178), QColor(255, 214, 0), QColor(255, 64, 129)),
+        (QColor(255, 142, 48), QColor(238, 42, 83), QColor(213, 0, 249)),
+        (QColor(255, 222, 68), QColor(255, 111, 35), QColor(213, 0, 249)),
+        (QColor(29, 233, 182), QColor(0, 131, 176), QColor(87, 95, 255)),
+        (QColor(250, 82, 82), QColor(255, 199, 95), QColor(0, 230, 118)),
+        (QColor(87, 95, 255), QColor(255, 79, 216), QColor(255, 214, 0)),
+        (QColor(0, 191, 255), QColor(255, 255, 92), QColor(255, 61, 0)),
+        (QColor(131, 255, 107), QColor(25, 84, 255), QColor(213, 0, 249)),
+        (QColor(255, 64, 129), QColor(0, 229, 255), QColor(255, 234, 0)),
+        (QColor(255, 171, 0), QColor(124, 77, 255), QColor(0, 230, 118)),
+        (QColor(118, 255, 3), QColor(255, 64, 129), QColor(41, 98, 255)),
+        (QColor(0, 230, 118), QColor(255, 214, 0), QColor(255, 61, 0)),
+        (QColor(68, 138, 255), QColor(255, 82, 82), QColor(255, 234, 0)),
+        (QColor(213, 0, 249), QColor(0, 230, 118), QColor(0, 191, 255)),
+        (QColor(255, 234, 0), QColor(41, 98, 255), QColor(255, 64, 129)),
+        (QColor(255, 61, 0), QColor(0, 200, 255), QColor(118, 255, 3)),
     )
 
     def __init__(self, parent: QWidget | None = None):
@@ -137,7 +137,7 @@ class VinylRecordWidget(QWidget):
         self._rotation_timer.timeout.connect(self._advance_rotation)
 
     @classmethod
-    def gradient_for_key(cls, key: str) -> tuple[QColor, QColor]:
+    def gradient_for_key(cls, key: str) -> tuple[QColor, QColor, QColor]:
         seed = sum((idx + 1) * ord(ch) for idx, ch in enumerate(key.casefold()))
         return cls.GRADIENT_PALETTES[seed % len(cls.GRADIENT_PALETTES)]
 
@@ -183,9 +183,10 @@ class VinylRecordWidget(QWidget):
             painter.drawEllipse(disc.adjusted(inset, inset, -inset, -inset))
 
         label_rect = QRectF(10, 14, 19, 19)
-        start, end = self._gradient_colors
+        start, middle, end = self._gradient_colors
         gradient = QLinearGradient(label_rect.topLeft(), label_rect.bottomRight())
         gradient.setColorAt(0.0, start)
+        gradient.setColorAt(0.5, middle)
         gradient.setColorAt(1.0, end)
         painter.setBrush(QBrush(gradient))
         painter.setPen(QPen(QColor(255, 255, 255, 36), 0.7))
