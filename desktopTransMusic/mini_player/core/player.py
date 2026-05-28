@@ -38,6 +38,31 @@ def _read_metadata(filepath: str) -> tuple[str, str]:
     return (name, "")
 
 
+def _read_cover_art(filepath: str) -> bytes | None:
+    """Return embedded cover image bytes, or None when unavailable."""
+    try:
+        mf = MutagenFile(filepath)
+        if mf is None or not mf.tags:
+            return None
+
+        for key, value in mf.tags.items():
+            if key.startswith("APIC") and hasattr(value, "data"):
+                return bytes(value.data)
+            if key == "covr" and value:
+                return bytes(value[0])
+            if key == "metadata_block_picture" and hasattr(value, "data"):
+                return bytes(value.data)
+
+        pictures = getattr(mf, "pictures", None)
+        if pictures:
+            data = getattr(pictures[0], "data", None)
+            if data:
+                return bytes(data)
+    except Exception:
+        return None
+    return None
+
+
 class MusicPlayer(QObject):
     REPEAT_ALL = 0
     REPEAT_SINGLE = 1
