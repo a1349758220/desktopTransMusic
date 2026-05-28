@@ -107,7 +107,9 @@ class TrackPopup(QWidget):
     def __init__(self, parent: QWidget):
         super().__init__(parent)
         self.setWindowFlags(
-            Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint
+            Qt.WindowType.Popup
+            | Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.NoDropShadowWindowHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
