@@ -1,146 +1,146 @@
-# Vinyl Record Mini Bar Design
+# 迷你播放条唱片效果设计
 
-## Summary
+## 概述
 
-Add a compact vinyl-record visual to the far left of the existing 400 x 50 mini player bar. This change targets the current 400 x 50 theme only. A future 200 x 80 theme can use a larger variant, but that is outside this scope.
+在现有 400 x 50 的迷你播放条最左侧增加一个紧凑的唱片视觉组件。本次只面向当前 400 x 50 主题；后续 200 x 80 主题可以基于同一思路做更大的版本，但不包含在本轮范围内。
 
-## Goals
+## 目标
 
-- Keep the mini player window size at 400 x 50.
-- Add a small record player effect at the far left.
-- Show the current track cover in the record center when embedded cover art exists.
-- Fall back to a pure record graphic when the current track has no cover art.
-- Rotate the record only while music is playing.
-- Move the tonearm onto the record only while music is playing.
-- Move the tonearm outside the record when paused, stopped, or no track is loaded.
+- 播放器窗口尺寸保持 400 x 50 不变。
+- 在播放条最左侧增加小型唱片机效果。
+- 当当前音乐文件包含内嵌封面时，唱片中心显示圆形封面。
+- 当当前音乐文件没有内嵌封面时，整体显示默认唱片图形，不显示空白占位。
+- 只有音乐播放中，唱片才旋转。
+- 只有音乐播放中，音轴才落在唱片上。
+- 暂停、停止或未加载音乐时，音轴停在唱片外侧。
 
-## Non-Goals
+## 非目标
 
-- Do not implement the future 200 x 80 theme.
-- Do not redesign the whole mini player layout.
-- Do not add external image assets for the record or tonearm.
-- Do not change audio playback behavior.
+- 不实现后续的 200 x 80 主题。
+- 不重新设计整个迷你播放条。
+- 不新增外部图片资源来绘制唱片或音轴。
+- 不改变现有音频播放行为。
 
-## Existing Context
+## 现有上下文
 
-The app is a PySide6 mini player. The main bar lives in `desktopTransMusic/mini_player/ui/mini_bar.py` and currently has a fixed 400 x 50 frameless window. Playback state and metadata come from `desktopTransMusic/mini_player/core/player.py`, which already uses `mutagen` for title, artist, and duration.
+该应用是 PySide6 迷你播放器。主播放条位于 `desktopTransMusic/mini_player/ui/mini_bar.py`，当前是固定 400 x 50 的无边框窗口。播放状态和音乐元数据来自 `desktopTransMusic/mini_player/core/player.py`，其中已经使用 `mutagen` 读取标题、艺术家和时长。
 
-The reference music folder is `C:\Users\Suen ZtaYrua\Desktop\music`. It contains tracks with embedded cover art and one observed track without cover art:
+参考音乐目录是 `C:\Users\Suen ZtaYrua\Desktop\music`。目前观察到该目录里既有带封面的音乐，也有无封面的音乐：
 
-- Cover examples: `一万个舍不得 - 庄心妍&祁隆.mp3`, `天空之上（电影《玛纳斯人之失落的秘境》主题曲）.mp3`, `泡沫-邓紫棋.mp3`, `红山果 安与骑兵.mp3`
-- No-cover example: `追梦赤子心-GALA.mp3`
+- 带封面示例：`一万个舍不得 - 庄心妍&祁隆.mp3`、`天空之上（电影《玛纳斯人之失落的秘境》主题曲）.mp3`、`泡沫-邓紫棋.mp3`、`红山果 安与骑兵.mp3`
+- 无封面示例：`追梦赤子心-GALA.mp3`
 
-## Proposed UI
+## UI 方案
 
-Create a compact `VinylRecordWidget` placed as the first child in the `MiniBar` horizontal layout.
+新增一个紧凑的 `VinylRecordWidget`，作为 `MiniBar` 水平布局里的第一个子控件。
 
-Approximate dimensions:
+大致尺寸：
 
-- Widget size: 42 x 44 px.
-- Record diameter: 38 px.
-- Cover circle: about 20 px diameter.
-- Tonearm: code-drawn white arm and cartridge, scaled for the 50 px bar.
+- 组件尺寸：42 x 44 px。
+- 唱片直径：38 px。
+- 封面圆直径：约 20 px。
+- 音轴：使用代码绘制白色音轴和唱头，并按 50 px 高度缩放。
 
-The rest of the controls remain in the existing order:
+其他控件保持现有顺序：
 
-1. Vinyl record widget
-2. Previous button
-3. Play / pause button
-4. Next button
-5. Track indicator
-6. Progress slider
-7. Time label
+1. 唱片组件
+2. 上一首按钮
+3. 播放 / 暂停按钮
+4. 下一首按钮
+5. 曲目数量指示器
+6. 进度条
+7. 时间文本
 
-The existing 400 px width remains unchanged, so the progress slider will give up a small amount of horizontal space.
+播放条总宽度仍然保持 400 px，因此进度条会让出少量横向空间给唱片组件。
 
-## State Behavior
+## 状态行为
 
-### No Track Loaded
+### 未加载音乐
 
-- Record is visible as a default vinyl graphic.
-- No cover art is shown.
-- Tonearm rests outside the record.
-- Rotation timer is stopped.
+- 显示默认唱片图形。
+- 不显示封面。
+- 音轴停在唱片外侧。
+- 旋转定时器停止。
 
-### Playing
+### 播放中
 
-- Record rotates continuously.
-- Tonearm rests over the record.
-- If embedded cover art exists, it appears clipped to a circular center label.
-- If no embedded cover art exists, the record center remains part of the default vinyl graphic.
+- 唱片持续旋转。
+- 音轴落在唱片上。
+- 如果音乐文件包含内嵌封面，封面会被裁剪为圆形并显示在唱片中心。
+- 如果音乐文件没有内嵌封面，唱片中心保持默认唱片图形。
 
-### Paused Or Stopped
+### 暂停或停止
 
-- Record stops rotating at its current angle.
-- Tonearm moves outside the record.
-- Current cover art remains visible if a track is loaded and has cover art.
+- 唱片停止旋转，并保留当前角度。
+- 音轴移动到唱片外侧。
+- 如果当前曲目有封面，封面继续显示。
 
-## Cover Art Extraction
+## 封面提取
 
-Add cover extraction in `core/player.py` using the existing `mutagen` dependency.
+在 `core/player.py` 中新增封面提取逻辑，继续使用现有的 `mutagen` 依赖。
 
-Supported cases:
+支持范围：
 
-- MP3 ID3 `APIC` frames.
-- MP4/M4A `covr` tags.
-- FLAC/Vorbis pictures when available through mutagen metadata.
+- MP3 ID3 的 `APIC` 帧。
+- MP4/M4A 的 `covr` 标签。
+- FLAC/Vorbis 中可通过 mutagen 读取的图片信息。
 
-Expose cover changes through a new signal, for example:
+新增一个封面变化信号，例如：
 
 ```python
 cover_changed = Signal(object)  # bytes | None
 ```
 
-When a track starts, emit the cover bytes if available, otherwise emit `None`. UI code converts bytes into a `QPixmap`.
+每次开始播放新曲目时，如果读取到封面则发出封面字节；如果没有封面则发出 `None`。UI 层负责把字节转换成 `QPixmap`。
 
-## Animation
+## 动画
 
-`VinylRecordWidget` owns a lightweight `QTimer` for animation.
+`VinylRecordWidget` 自己持有一个轻量级 `QTimer` 用于动画。
 
-- Timer interval: about 40 ms.
-- Each tick increments the record angle and calls `update()`.
-- `set_playing(True)` starts the timer.
-- `set_playing(False)` stops the timer and repaints the tonearm outside the record.
+- 定时间隔约 40 ms。
+- 每次 tick 增加唱片旋转角度并调用 `update()`。
+- `set_playing(True)` 启动定时器。
+- `set_playing(False)` 停止定时器，并重绘音轴到唱片外侧。
 
-The record graphic and cover art rotate together. The tonearm does not rotate; it changes between two fixed poses.
+唱片图形和封面一起旋转。音轴不参与旋转，只在「唱片外侧」和「唱片上」两个固定姿态之间切换。
 
-## Rendering
+## 绘制方式
 
-Use `QPainter` to draw the component.
+使用 `QPainter` 绘制整个组件。
 
-Record layers:
+唱片层级：
 
-- Outer black disc.
-- Subtle radial grooves.
-- Inner circular cover area when cover art exists.
-- Small center hole.
+- 外层黑色唱片。
+- 细微的环形纹路。
+- 有封面时显示圆形封面区域。
+- 中心小孔。
 
-Tonearm layers:
+音轴层级：
 
-- Pivot circle.
-- White arm line.
-- Cartridge/head shape.
+- 轴心圆。
+- 白色音轴线条。
+- 唱头形状。
 
-All drawing uses anti-aliasing and transparent backgrounds so it blends with the existing acrylic-style mini bar.
+所有图形启用抗锯齿，并保持透明背景，以便和现有半透明播放条融合。
 
-## Tests
+## 测试
 
-Add focused tests where practical:
+在可行范围内增加聚焦测试：
 
-- Cover extraction returns bytes for a known cover-art file.
-- Cover extraction returns `None` for the no-cover reference file.
-- `VinylRecordWidget.set_playing(True)` starts its animation timer.
-- `VinylRecordWidget.set_playing(False)` stops its animation timer.
-- `VinylRecordWidget.set_cover_bytes(None)` clears cover state without raising.
+- 对已知带封面的音乐文件，封面提取应返回 bytes。
+- 对已知无封面的音乐文件，封面提取应返回 `None`。
+- `VinylRecordWidget.set_playing(True)` 应启动动画定时器。
+- `VinylRecordWidget.set_playing(False)` 应停止动画定时器。
+- `VinylRecordWidget.set_cover_bytes(None)` 应清空封面状态且不抛异常。
 
-If a full Qt test harness is not already present, keep UI tests minimal and prefer isolated helper tests for metadata extraction.
+如果项目中尚未建立完整 Qt 测试框架，UI 测试保持最小化，优先测试封面提取这类可隔离逻辑。
 
-## Acceptance Criteria
+## 验收标准
 
-- The mini player window remains 400 x 50.
-- The record widget appears at the far left.
-- Playing music rotates the record and moves the tonearm onto it.
-- Pausing or stopping music stops rotation and moves the tonearm outside the record.
-- Tracks with embedded cover art show a circular cover in the record center.
-- Tracks without embedded cover art show only the default record graphic.
-- Existing controls still work and remain visible.
+- 迷你播放器窗口仍然是 400 x 50。
+- 唱片组件出现在播放条最左侧。
+- 播放音乐时，唱片旋转，音轴落在唱片上。
+- 暂停或停止音乐时，唱片停止旋转，音轴回到唱片外侧。
+- 带内嵌封面的音乐会在唱片中心显示圆形封面。
+- 无内嵌封面的音乐只显示默认唱片图形。
+- 现有控制按钮、曲目指示器、进度条和时间文本仍然可见且可用。
