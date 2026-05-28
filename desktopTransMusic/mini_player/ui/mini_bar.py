@@ -9,14 +9,14 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QPoint, QEvent, QSize, Signal
+from PySide6.QtCore import Qt, QPoint, QEvent, QSize, Signal, QTimer, QRectF, QPointF
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QSlider, QLabel,
     QFileDialog, QMenu, QApplication, QSystemTrayIcon,
 )
 from PySide6.QtGui import (
     QMouseEvent, QDragEnterEvent, QDropEvent, QAction,
-    QPainter, QColor, QIcon,
+    QPainter, QColor, QIcon, QPixmap, QPainterPath, QPen, QBrush,
 )
 
 from core.player import MusicPlayer
@@ -98,6 +98,119 @@ class SeekSlider(QSlider):
             ratio = event.position().x() / self.width()
             self.setValue(int(ratio * self.maximum()))
         super().mousePressEvent(event)
+
+
+class VinylRecordWidget(QWidget):
+    """Tiny record player visual for the 400x50 mini bar."""
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setFixedSize(42, 44)
+        self._angle = 0.0
+        self._cover_pixmap: QPixmap | None = None
+        self._playing = False
+        self._rotation_timer = QTimer(self)
+        self._rotation_timer.setInterval(40)
+        self._rotation_timer.timeout.connect(self._advance_rotation)
+
+    def set_playing(self, playing: bool) -> None:
+        self._playing = playing
+        if playing:
+            self._rotation_timer.start()
+        else:
+            self._rotation_timer.stop()
+        self.update()
+
+    def set_cover_bytes(self, data: bytes | None) -> None:
+        if not data:
+            self._cover_pixmap = None
+        else:
+            pixmap = QPixmap()
+            self._cover_pixmap = pixmap if pixmap.loadFromData(data) else None
+        self.update()
+
+    def _advance_rotation(self) -> None:
+        self._angle = (self._angle + 2.0) % 360.0
+        self.update()
+
+    def paintEvent(self, event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        self._draw_record(painter)
+        self._draw_tonearm(painter)
+
+    def _draw_record(self, painter: QPainter) -> None:
+        disc = QRectF(1, 5, 37, 37)
+        center = disc.center()
+
+        painter.save()
+        painter.translate(center)
+        painter.rotate(self._angle)
+        painter.translate(-center)
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(8, 8, 10, 245))
+        painter.drawEllipse(disc)
+
+        groove_pen = QPen(QColor(255, 255, 255, 18), 0.55)
+        painter.setPen(groove_pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        for inset in range(4, 16, 3):
+            painter.drawEllipse(disc.adjusted(inset, inset, -inset, -inset))
+
+        cover_rect = QRectF(10, 14, 19, 19)
+        if self._cover_pixmap is not None and not self._cover_pixmap.isNull():
+            path = QPainterPath()
+            path.addEllipse(cover_rect)
+            painter.setClipPath(path)
+            scaled = self._cover_pixmap.scaled(
+                int(cover_rect.width()),
+                int(cover_rect.height()),
+                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            x = cover_rect.x() + (cover_rect.width() - scaled.width()) / 2
+            y = cover_rect.y() + (cover_rect.height() - scaled.height()) / 2
+            painter.drawPixmap(QPointF(x, y), scaled)
+            painter.setClipping(False)
+        else:
+            painter.setBrush(QColor(21, 21, 25, 235))
+            painter.setPen(QPen(QColor(255, 255, 255, 24), 0.7))
+            painter.drawEllipse(cover_rect)
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(245, 245, 245, 230))
+        painter.drawEllipse(QRectF(17, 21, 5, 5))
+        painter.setBrush(QColor(20, 20, 24, 235))
+        painter.drawEllipse(QRectF(18.7, 22.7, 1.6, 1.6))
+        painter.restore()
+
+    def _draw_tonearm(self, painter: QPainter) -> None:
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        pivot = QPointF(27, 5)
+        tip = QPointF(31, 24) if self._playing else QPointF(40, 13)
+        elbow = QPointF(30, 14) if self._playing else QPointF(34, 10)
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(0, 0, 0, 70))
+        painter.drawEllipse(QRectF(pivot.x() - 6, pivot.y() - 6, 12, 12))
+        painter.setBrush(QColor(248, 248, 248, 245))
+        painter.drawEllipse(QRectF(pivot.x() - 3.5, pivot.y() - 3.5, 7, 7))
+
+        arm_pen = QPen(QColor(250, 250, 250, 245), 3.4)
+        arm_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        arm_pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        painter.setPen(arm_pen)
+        painter.drawLine(pivot, elbow)
+        painter.drawLine(elbow, tip)
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QBrush(QColor(255, 255, 255, 245)))
+        head = QRectF(tip.x() - 3, tip.y() - 2, 8, 5)
+        painter.drawRoundedRect(head, 1.2, 1.2)
+        painter.restore()
 
 
 class TrackPopup(QWidget):
