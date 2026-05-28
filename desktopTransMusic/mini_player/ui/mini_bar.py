@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import (
     QMouseEvent, QDragEnterEvent, QDropEvent, QAction,
-    QPainter, QColor, QIcon, QPixmap, QPainterPath, QPen, QBrush,
+    QPainter, QColor, QIcon, QLinearGradient, QPen, QBrush,
 )
 
 from core.player import MusicPlayer
@@ -103,15 +103,30 @@ class SeekSlider(QSlider):
 class VinylRecordWidget(QWidget):
     """Tiny record player visual for the 400x50 mini bar."""
 
+    GRADIENT_PALETTES = (
+        (QColor(255, 66, 91), QColor(255, 126, 190)),
+        (QColor(255, 91, 176), QColor(153, 94, 255)),
+        (QColor(154, 92, 255), QColor(67, 136, 255)),
+        (QColor(58, 130, 255), QColor(44, 221, 230)),
+        (QColor(40, 210, 190), QColor(103, 235, 124)),
+        (QColor(255, 151, 71), QColor(245, 58, 93)),
+        (QColor(255, 214, 86), QColor(255, 127, 61)),
+    )
+
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setFixedSize(42, 44)
         self._angle = 0.0
-        self._cover_pixmap: QPixmap | None = None
+        self._gradient_colors = self.gradient_for_key("")
         self._playing = False
         self._rotation_timer = QTimer(self)
         self._rotation_timer.setInterval(40)
         self._rotation_timer.timeout.connect(self._advance_rotation)
+
+    @classmethod
+    def gradient_for_key(cls, key: str) -> tuple[QColor, QColor]:
+        seed = sum((idx + 1) * ord(ch) for idx, ch in enumerate(key.casefold()))
+        return cls.GRADIENT_PALETTES[seed % len(cls.GRADIENT_PALETTES)]
 
     def set_playing(self, playing: bool) -> None:
         self._playing = playing
@@ -121,12 +136,8 @@ class VinylRecordWidget(QWidget):
             self._rotation_timer.stop()
         self.update()
 
-    def set_cover_bytes(self, data: bytes | None) -> None:
-        if not data:
-            self._cover_pixmap = None
-        else:
-            pixmap = QPixmap()
-            self._cover_pixmap = pixmap if pixmap.loadFromData(data) else None
+    def set_track_key(self, key: str) -> None:
+        self._gradient_colors = self.gradient_for_key(key)
         self.update()
 
     def _advance_rotation(self) -> None:
@@ -158,25 +169,14 @@ class VinylRecordWidget(QWidget):
         for inset in range(4, 16, 3):
             painter.drawEllipse(disc.adjusted(inset, inset, -inset, -inset))
 
-        cover_rect = QRectF(10, 14, 19, 19)
-        if self._cover_pixmap is not None and not self._cover_pixmap.isNull():
-            path = QPainterPath()
-            path.addEllipse(cover_rect)
-            painter.setClipPath(path)
-            scaled = self._cover_pixmap.scaled(
-                int(cover_rect.width()),
-                int(cover_rect.height()),
-                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-            x = cover_rect.x() + (cover_rect.width() - scaled.width()) / 2
-            y = cover_rect.y() + (cover_rect.height() - scaled.height()) / 2
-            painter.drawPixmap(QPointF(x, y), scaled)
-            painter.setClipping(False)
-        else:
-            painter.setBrush(QColor(21, 21, 25, 235))
-            painter.setPen(QPen(QColor(255, 255, 255, 24), 0.7))
-            painter.drawEllipse(cover_rect)
+        label_rect = QRectF(10, 14, 19, 19)
+        start, end = self._gradient_colors
+        gradient = QLinearGradient(label_rect.topLeft(), label_rect.bottomRight())
+        gradient.setColorAt(0.0, start)
+        gradient.setColorAt(1.0, end)
+        painter.setBrush(QBrush(gradient))
+        painter.setPen(QPen(QColor(255, 255, 255, 36), 0.7))
+        painter.drawEllipse(label_rect)
 
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor(245, 245, 245, 230))
@@ -726,7 +726,7 @@ class MiniBar(QWidget):
         self._player.position_changed.connect(self._on_position)
         self._player.duration_changed.connect(self._on_duration)
         self._player.track_changed.connect(self._on_track)
-        self._player.cover_changed.connect(self._vinyl_widget.set_cover_bytes)
+        self._player.track_visual_changed.connect(self._vinyl_widget.set_track_key)
         self._player.playback_state_changed.connect(self._on_state)
         self._player.repeat_mode_changed.connect(self._on_repeat_mode_changed)
         self._track_indicator.clicked.connect(self._on_track_indicator_clicked)

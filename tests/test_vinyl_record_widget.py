@@ -26,12 +26,19 @@ class VinylRecordWidgetTests(unittest.TestCase):
         widget.set_playing(False)
         self.assertFalse(widget._rotation_timer.isActive())
 
-    def test_set_cover_bytes_none_clears_cover(self):
+    def test_gradient_for_key_is_stable(self):
+        first = VinylRecordWidget.gradient_for_key(r"C:\Music\a.mp3")
+        second = VinylRecordWidget.gradient_for_key(r"C:\Music\a.mp3")
+
+        self.assertEqual(first, second)
+        self.assertEqual(len(first), 2)
+
+    def test_set_track_key_updates_gradient_state(self):
         widget = VinylRecordWidget()
 
-        widget.set_cover_bytes(None)
+        widget.set_track_key(r"C:\Music\a.mp3")
 
-        self.assertIsNone(widget._cover_pixmap)
+        self.assertEqual(widget._gradient_colors, VinylRecordWidget.gradient_for_key(r"C:\Music\a.mp3"))
 
     def test_vinyl_widget_has_expected_fixed_size(self):
         widget = VinylRecordWidget()
@@ -53,7 +60,7 @@ class DummyPlayer:
         self.position_changed = DummySignal()
         self.duration_changed = DummySignal()
         self.track_changed = DummySignal()
-        self.cover_changed = DummySignal()
+        self.track_visual_changed = DummySignal()
         self.playback_state_changed = DummySignal()
         self.repeat_mode_changed = DummySignal()
 
