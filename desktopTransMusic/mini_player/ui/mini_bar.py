@@ -672,6 +672,10 @@ class MiniBar(QWidget):
         layout.setContentsMargins(10, 0, 10, 0)
         layout.setSpacing(4)
 
+        # Vinyl record visual
+        self._vinyl_widget = VinylRecordWidget(self)
+        layout.addWidget(self._vinyl_widget)
+
         # Prev
         self._btn_prev = QPushButton()
         self._btn_prev.setIcon(_icon("previous"))
@@ -722,6 +726,7 @@ class MiniBar(QWidget):
         self._player.position_changed.connect(self._on_position)
         self._player.duration_changed.connect(self._on_duration)
         self._player.track_changed.connect(self._on_track)
+        self._player.cover_changed.connect(self._vinyl_widget.set_cover_bytes)
         self._player.playback_state_changed.connect(self._on_state)
         self._player.repeat_mode_changed.connect(self._on_repeat_mode_changed)
         self._track_indicator.clicked.connect(self._on_track_indicator_clicked)
@@ -811,6 +816,7 @@ class MiniBar(QWidget):
 
     def _on_state(self, playing: bool) -> None:
         self._btn_play.setIcon(_icon("pause" if playing else "play"))
+        self._vinyl_widget.set_playing(playing)
 
     # ── File dialog ──────────────────────────────────────────────────
 
