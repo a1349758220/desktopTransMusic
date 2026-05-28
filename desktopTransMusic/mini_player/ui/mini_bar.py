@@ -103,6 +103,9 @@ class SeekSlider(QSlider):
 class TrackPopup(QWidget):
     """Popup playlist list that appears below the track indicator."""
     track_selected = Signal(int)
+    repeat_clicked = Signal()
+    volume_changed = Signal(int)
+    mute_toggled = Signal()
 
     def __init__(self, parent: QWidget):
         super().__init__(parent)
@@ -123,6 +126,61 @@ class TrackPopup(QWidget):
         self._layout.setSpacing(1)
         self.installEventFilter(self)
 
+        # ── separator ──
+        self._sep = QLabel()
+        self._sep.setFixedHeight(1)
+        self._sep.setStyleSheet("background: rgba(255,255,255,15); margin: 2px 10px;")
+
+        # ── controls bar ──
+        ctrl = QWidget()
+        ctrl_layout = QHBoxLayout(ctrl)
+        ctrl_layout.setContentsMargins(8, 2, 8, 4)
+        ctrl_layout.setSpacing(4)
+
+        self._repeat_btn = QPushButton()
+        self._repeat_btn.setIcon(_icon("repeat_all"))
+        self._repeat_btn.setIconSize(ICON_SZ)
+        self._repeat_btn.setToolTip("列表循环")
+        self._repeat_btn.setFixedSize(20, 20)
+        self._repeat_btn.setStyleSheet(
+            "QPushButton{background:transparent;border:none;border-radius:3px;}"
+            "QPushButton:hover{background:rgba(255,255,255,25);}"
+        )
+        self._repeat_btn.clicked.connect(self.repeat_clicked.emit)
+        ctrl_layout.addWidget(self._repeat_btn)
+
+        ctrl_layout.addStretch()
+
+        self._vol_btn = QPushButton()
+        self._vol_btn.setIcon(_icon("volume_high"))
+        self._vol_btn.setIconSize(ICON_SZ)
+        self._vol_btn.setToolTip("静音 / 取消静音")
+        self._vol_btn.setFixedSize(20, 20)
+        self._vol_btn.setStyleSheet(
+            "QPushButton{background:transparent;border:none;border-radius:3px;}"
+            "QPushButton:hover{background:rgba(255,255,255,25);}"
+        )
+        self._vol_btn.clicked.connect(self.mute_toggled.emit)
+        ctrl_layout.addWidget(self._vol_btn)
+
+        self._vol_slider = QSlider(Qt.Orientation.Horizontal)
+        self._vol_slider.setRange(0, 100)
+        self._vol_slider.setValue(70)
+        self._vol_slider.setFixedWidth(44)
+        self._vol_slider.setStyleSheet(
+            "QSlider::groove:horizontal{border:none;height:2px;"
+            "background:rgba(200,200,215,45);border-radius:1px;}"
+            "QSlider::handle:horizontal{background:rgba(200,200,215,160);"
+            "border:none;width:7px;height:7px;margin:-2px 0;border-radius:3px;}"
+            "QSlider::handle:horizontal:hover{background:rgba(220,220,235,210);}"
+            "QSlider::sub-page:horizontal{background:rgba(200,200,215,100);"
+            "border-radius:1px;}"
+        )
+        self._vol_slider.valueChanged.connect(self.volume_changed.emit)
+        ctrl_layout.addWidget(self._vol_slider)
+
+        self._controls_widget = ctrl
+
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -138,6 +196,8 @@ class TrackPopup(QWidget):
             self._layout.removeWidget(lbl)
             lbl.deleteLater()
         self._labels.clear()
+        self._layout.removeWidget(self._sep)
+        self._layout.removeWidget(self._controls_widget)
 
         total = len(playlist)
         max_show = 8
@@ -190,7 +250,36 @@ class TrackPopup(QWidget):
             self._labels.append(lbl)
             self._layout.addWidget(lbl)
 
-        self.setFixedHeight(len(items) * 20 + 10)
+        # ── separator + controls: always farthest from the bar ──
+        if self._above:
+            self._layout.addWidget(self._controls_widget)
+            self._layout.addWidget(self._sep)
+        else:
+            self._layout.addWidget(self._sep)
+            self._layout.addWidget(self._controls_widget)
+
+        self.setFixedHeight(len(items) * 20 + 10 + 31)
+
+    # ── Control state helpers ──
+
+    def set_repeat_mode(self, mode: int) -> None:
+        """Update repeat button icon. 0=all, 1=single, 2=shuffle."""
+        icons = {0: "repeat_all", 1: "repeat_single", 2: "shuffle"}
+        tips = {0: "列表循环", 1: "单曲循环", 2: "随机播放"}
+        self._repeat_btn.setIcon(_icon(icons.get(mode, "repeat_all")))
+        self._repeat_btn.setToolTip(tips.get(mode, "列表循环"))
+
+    def set_volume(self, value: int) -> None:
+        """Update volume slider and icon without emitting signals."""
+        self._vol_slider.blockSignals(True)
+        self._vol_slider.setValue(value)
+        self._vol_slider.blockSignals(False)
+        if value == 0:
+            self._vol_btn.setIcon(_icon("mute"))
+        elif value <= 49:
+            self._vol_btn.setIcon(_icon("volume_medium"))
+        else:
+            self._vol_btn.setIcon(_icon("volume_high"))
 
     def eventFilter(self, obj, event) -> bool:
         if isinstance(obj, QLabel) and obj.property("track_index") is not None:
@@ -217,12 +306,16 @@ class TrackPopup(QWidget):
                     )
         return False
 
-    def show_at(self, bar: QWidget, playlist: list[str], current_index: int) -> None:
+    def show_at(self, bar: QWidget, playlist: list[str], current_index: int,
+                repeat_mode: int = 0, volume: int = 70) -> None:
         """Position popup 3px from the bar edge, flipping above if overflow."""
         GAP = 3
         self._above = False
         self.set_tracks(playlist, current_index)
         popup_h = self.height()
+
+        self.set_repeat_mode(repeat_mode)
+        self.set_volume(volume)
 
         bar_global = bar.mapToGlobal(QPoint(0, 0))
         screen = QApplication.primaryScreen().availableGeometry()
@@ -288,6 +381,7 @@ class MiniBar(QWidget):
         self._player = player or MusicPlayer(self)
         self._muted = False
         self._pre_mute_volume = 0.7
+        self._volume = 70
         self._duration_ms = 0
         self._seeking = False
 
@@ -390,6 +484,9 @@ class MiniBar(QWidget):
         if self._track_popup is None:
             self._track_popup = TrackPopup(None)
             self._track_popup.track_selected.connect(self._player.jump_to)
+            self._track_popup.repeat_clicked.connect(self._on_repeat_clicked)
+            self._track_popup.volume_changed.connect(self._on_vol_slider_changed)
+            self._track_popup.mute_toggled.connect(self._on_vol_clicked)
         return self._track_popup
 
     def _on_track_indicator_clicked(self) -> None:
@@ -399,7 +496,9 @@ class MiniBar(QWidget):
         if popup.isVisible():
             popup.hide()
             return
-        popup.show_at(self, self._player.playlist, self._player.current_index)
+        vol = self._muted and 0 or self._volume
+        popup.show_at(self, self._player.playlist, self._player.current_index,
+                      self._player.repeat_mode, vol)
 
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
@@ -481,13 +580,6 @@ class MiniBar(QWidget):
         self._btn_next.setToolTip("下一首")
         layout.addWidget(self._btn_next)
 
-        # Repeat mode (toggle: repeat_all → repeat_single → shuffle)
-        self._btn_repeat = QPushButton()
-        self._btn_repeat.setIcon(_icon("repeat_all"))
-        self._btn_repeat.setIconSize(ICON_SZ)
-        self._btn_repeat.setToolTip("列表循环")
-        layout.addWidget(self._btn_repeat)
-
         # Track indicator (playlist position)
         self._track_indicator = TrackIndicator(self)
         layout.addWidget(self._track_indicator)
@@ -507,52 +599,13 @@ class MiniBar(QWidget):
         self._time_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self._time_label)
 
-        layout.addSpacing(3)
-
-        # Volume icon (auto-switch: high / medium / mute)
-        self._btn_vol = QPushButton()
-        self._btn_vol.setIcon(_icon("volume_high"))
-        self._btn_vol.setIconSize(ICON_SZ)
-        self._btn_vol.setToolTip("静音 / 取消静音")
-        layout.addWidget(self._btn_vol)
-
-        # Volume slider
-        self._vol_slider = QSlider(Qt.Orientation.Horizontal)
-        self._vol_slider.setRange(0, 100)
-        self._vol_slider.setValue(70)
-        self._vol_slider.setToolTip("音量")
-        self._vol_slider.setFixedWidth(44)
-        self._vol_slider.setStyleSheet("""
-            QSlider::groove:horizontal {
-                border: none; height: 2px;
-                background: rgba(200,200,215,45);
-                border-radius: 1px;
-            }
-            QSlider::handle:horizontal {
-                background: rgba(200,200,215,160);
-                border: none; width: 7px; height: 7px;
-                margin: -2px 0; border-radius: 3px;
-            }
-            QSlider::handle:horizontal:hover {
-                background: rgba(220,220,235,210);
-            }
-            QSlider::sub-page:horizontal {
-                background: rgba(200,200,215,100);
-                border-radius: 1px;
-            }
-        """)
-        layout.addWidget(self._vol_slider)
-
     def _connect_signals(self) -> None:
         self._btn_play.clicked.connect(self._on_play_clicked)
         self._btn_prev.clicked.connect(self._player.prev)
         self._btn_next.clicked.connect(self._player.next)
-        self._btn_repeat.clicked.connect(self._on_repeat_clicked)
-        self._btn_vol.clicked.connect(self._on_vol_clicked)
         self._progress.sliderPressed.connect(self._on_seek_press)
         self._progress.sliderReleased.connect(self._on_seek_release)
         self._progress.valueChanged.connect(self._on_progress_value_changed)
-        self._vol_slider.valueChanged.connect(self._on_vol_slider_changed)
         self._player.position_changed.connect(self._on_position)
         self._player.duration_changed.connect(self._on_duration)
         self._player.track_changed.connect(self._on_track)
@@ -576,40 +629,30 @@ class MiniBar(QWidget):
         self._player.cycle_repeat_mode()
 
     def _on_repeat_mode_changed(self, mode: int) -> None:
-        if mode == MusicPlayer.REPEAT_ALL:
-            self._btn_repeat.setIcon(_icon("repeat_all"))
-            self._btn_repeat.setToolTip("列表循环")
-        elif mode == MusicPlayer.REPEAT_SINGLE:
-            self._btn_repeat.setIcon(_icon("repeat_single"))
-            self._btn_repeat.setToolTip("单曲循环")
-        else:
-            self._btn_repeat.setIcon(_icon("shuffle"))
-            self._btn_repeat.setToolTip("随机播放")
+        if self._track_popup:
+            self._track_popup.set_repeat_mode(mode)
 
     def _update_volume_icon(self, value: int) -> None:
         """Switch volume icon based on value."""
-        if value == 0:
-            self._btn_vol.setIcon(_icon("mute"))
-        elif value <= 49:
-            self._btn_vol.setIcon(_icon("volume_medium"))
-        else:
-            self._btn_vol.setIcon(_icon("volume_high"))
+        if self._track_popup:
+            self._track_popup.set_volume(value)
 
     def _on_vol_clicked(self) -> None:
         if self._muted:
             self._muted = False
             v = self._pre_mute_volume
-            self._vol_slider.setValue(int(v * 100))
+            self._volume = int(v * 100)
             self._player.set_volume(v)
-            self._update_volume_icon(int(v * 100))
+            self._update_volume_icon(self._volume)
         else:
             self._muted = True
-            self._pre_mute_volume = self._vol_slider.value() / 100.0
-            self._vol_slider.setValue(0)
+            self._pre_mute_volume = self._volume / 100.0
+            self._volume = 0
             self._player.set_volume(0)
             self._update_volume_icon(0)
 
     def _on_vol_slider_changed(self, value: int) -> None:
+        self._volume = value
         vol = value / 100.0
         if vol > 0 and self._muted:
             self._muted = False
