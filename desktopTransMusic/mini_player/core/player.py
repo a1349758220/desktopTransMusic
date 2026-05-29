@@ -17,6 +17,14 @@ from mutagen import File as MutagenFile
 SUPPORTED_EXTS = {".mp3", ".flac", ".wav", ".ogg", ".aac", ".m4a", ".wma", ".opus"}
 
 
+def _path_key(filepath: str) -> str:
+    """Return a comparable key for paths that may use different separators/case."""
+    try:
+        return os.path.normcase(str(Path(filepath).resolve()))
+    except OSError:
+        return os.path.normcase(os.path.abspath(filepath))
+
+
 def _read_metadata(filepath: str) -> tuple[str, str]:
     """Return (title, artist) from audio file metadata, falling back to filename."""
     try:
@@ -92,7 +100,6 @@ class MusicPlayer(QObject):
         if self._state != "playing":
             return
         pygame.mixer.music.pause()
-        self._position_accumulator += pygame.mixer.music.get_pos()
         self._state = "paused"
         self._timer.stop()
         self.playback_state_changed.emit(False)
@@ -128,10 +135,13 @@ class MusicPlayer(QObject):
         """Seek to position in milliseconds."""
         if self._state == "stopped":
             return
+        position_ms = max(0, position_ms)
         try:
             pygame.mixer.music.rewind()
             pygame.mixer.music.set_pos(position_ms / 1000.0)
-            self._position_accumulator = position_ms
+            mixer_pos = max(0, pygame.mixer.music.get_pos())
+            self._position_accumulator = position_ms - mixer_pos
+            self.position_changed.emit(position_ms)
         except Exception:
             pass  # set_pos not supported by all formats/codecs
 
@@ -166,6 +176,15 @@ class MusicPlayer(QObject):
         self.repeat_mode_changed.emit(self._repeat_mode)
         return self._repeat_mode
 
+    def set_repeat_mode(self, mode: int) -> None:
+        """Set repeat mode directly. Invalid values fall back to repeat-all."""
+        if mode not in (self.REPEAT_ALL, self.REPEAT_SINGLE, self.SHUFFLE):
+            mode = self.REPEAT_ALL
+        if mode == self._repeat_mode:
+            return
+        self._repeat_mode = mode
+        self.repeat_mode_changed.emit(self._repeat_mode)
+
     def jump_to(self, index: int) -> None:
         """Jump to a specific track index in the playlist."""
         if 0 <= index < len(self._playlist):
@@ -177,15 +196,17 @@ class MusicPlayer(QObject):
         """Build a playlist of sibling audio files in the same directory."""
         ext = Path(filepath).suffix.lower()
         self._playlist.clear()
+        selected_key = _path_key(filepath)
         try:
             for entry in sorted(os.scandir(directory), key=lambda e: e.name.casefold()):
                 if entry.is_file() and Path(entry.name).suffix.lower() in SUPPORTED_EXTS:
+                    if _path_key(entry.path) == selected_key:
+                        continue
                     self._playlist.append(entry.path)
         except OSError:
-            self._playlist.append(filepath)
-        if filepath not in self._playlist:
-            self._playlist.append(filepath)
-        self._index = self._playlist.index(filepath)
+            pass
+        self._playlist.insert(0, filepath)
+        self._index = 0
 
     def _play_index(self, index: int) -> None:
         if index < 0 or index >= len(self._playlist):
@@ -193,7 +214,11 @@ class MusicPlayer(QObject):
         self._index = index
         filepath = self._playlist[index]
         pygame.mixer.music.stop()
-        pygame.mixer.music.load(filepath)
+        try:
+            pygame.mixer.music.load(filepath)
+        except pygame.error:
+            self._remove_unplayable_track(index)
+            return
         pygame.mixer.music.play()
         self._state = "playing"
         self._position_accumulator = 0
@@ -215,6 +240,22 @@ class MusicPlayer(QObject):
             self.duration_changed.emit(0)
 
         self.playback_state_changed.emit(True)
+
+    def _remove_unplayable_track(self, index: int) -> None:
+        if 0 <= index < len(self._playlist):
+            self._playlist.pop(index)
+        if not self._playlist:
+            self._index = -1
+            self._state = "stopped"
+            self._position_accumulator = 0
+            self._timer.stop()
+            self.position_changed.emit(0)
+            self.duration_changed.emit(0)
+            self.track_changed.emit("", "")
+            self.playback_state_changed.emit(False)
+            return
+        next_index = min(index, len(self._playlist) - 1)
+        self._play_index(next_index)
 
     def _poll(self) -> None:
         """Timer tick: update position, detect end-of-track."""

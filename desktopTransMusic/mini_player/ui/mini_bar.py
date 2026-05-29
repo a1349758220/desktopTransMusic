@@ -21,6 +21,7 @@ from PySide6.QtGui import (
 
 from core.player import MusicPlayer
 from utils.format import format_time
+from utils.settings import PlayerSettings, load_settings, save_settings
 
 MINI_WIDTH = 400
 MINI_HEIGHT = 50
@@ -62,9 +63,9 @@ STYLESHEET = """
     }
     QLabel#TimeLabel {
         font-family: "Consolas", "Courier New", monospace;
-        font-size: 10px;
-        min-width: 68px;
-        max-width: 68px;
+        font-size: 12px;
+        min-width: 84px;
+        max-width: 84px;
     }
     QSlider::groove:horizontal {
         border: none;
@@ -95,13 +96,14 @@ class SeekSlider(QSlider):
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
-            ratio = event.position().x() / self.width()
+            ratio = max(0.0, min(1.0, event.position().x() / self.width()))
             self.setValue(int(ratio * self.maximum()))
         super().mousePressEvent(event)
 
 
 class VinylRecordWidget(QWidget):
     """Tiny record player visual for the 400x50 mini bar."""
+    clicked = Signal()
 
     GRADIENT_PALETTES = (
         (QColor(255, 45, 85), QColor(255, 126, 190), QColor(123, 64, 255)),
@@ -129,6 +131,7 @@ class VinylRecordWidget(QWidget):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setFixedSize(50, 44)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self._angle = 0.0
         self._gradient_colors = self.gradient_for_key("")
         self._playing = False
@@ -156,6 +159,11 @@ class VinylRecordWidget(QWidget):
     def _advance_rotation(self) -> None:
         self._angle = (self._angle + 2.0) % 360.0
         self.update()
+
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        super().mouseReleaseEvent(event)
 
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
@@ -231,6 +239,70 @@ class VinylRecordWidget(QWidget):
         painter.restore()
 
 
+class HoverMarqueeLabel(QLabel):
+    """Single-line label that scrolls overflowing text only while hovered."""
+
+    def __init__(self, text: str, parent: QWidget | None = None):
+        super().__init__(text, parent)
+        self._full_text = text
+        self._scroll_offset = 0.0
+        self._scroll_gap_px = 24
+        self._scroll_step_px = 0.8
+        self._scroll_timer = QTimer(self)
+        self._scroll_timer.setInterval(30)
+        self._scroll_timer.timeout.connect(self._advance_scroll)
+
+    def setText(self, text: str) -> None:
+        self._full_text = text
+        self._scroll_offset = 0.0
+        super().setText(text)
+
+    def _text_width(self) -> int:
+        return self.fontMetrics().horizontalAdvance(self._full_text)
+
+    def _needs_scroll(self) -> bool:
+        return self._text_width() > self.contentsRect().width()
+
+    def _advance_scroll(self) -> None:
+        if not self._full_text or not self._needs_scroll():
+            return
+        loop_width = self._text_width() + self._scroll_gap_px
+        self._scroll_offset = (self._scroll_offset + self._scroll_step_px) % loop_width
+        self.update()
+
+    def enterEvent(self, event) -> None:
+        if self._needs_scroll():
+            self._scroll_timer.start()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:
+        self._scroll_timer.stop()
+        self._scroll_offset = 0.0
+        super().setText(self._full_text)
+        self.update()
+        super().leaveEvent(event)
+
+    def paintEvent(self, event) -> None:
+        if not self._scroll_timer.isActive() or not self._needs_scroll():
+            super().paintEvent(event)
+            return
+
+        painter = QPainter(self)
+        painter.setFont(self.font())
+        painter.setPen(self.palette().color(self.foregroundRole()))
+
+        rect = self.contentsRect()
+        painter.setClipRect(rect)
+        metrics = self.fontMetrics()
+        baseline_y = rect.top() + (rect.height() + metrics.ascent() - metrics.descent()) // 2
+        text_width = self._text_width()
+        first_x = rect.left() - self._scroll_offset
+        second_x = first_x + text_width + self._scroll_gap_px
+
+        painter.drawText(QPointF(first_x, baseline_y), self._full_text)
+        painter.drawText(QPointF(second_x, baseline_y), self._full_text)
+
+
 class TrackPopup(QWidget):
     """Popup playlist list that appears below the track indicator."""
     track_selected = Signal(int)
@@ -251,6 +323,7 @@ class TrackPopup(QWidget):
         self._above: bool = False
         self._playlist: list[str] = []
         self._current_index: int = 0
+        self._scroll_start: int = 0
         self._labels: list[QLabel] = []
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(0, 4, 0, 4)
@@ -266,27 +339,26 @@ class TrackPopup(QWidget):
         ctrl = QWidget()
         ctrl_layout = QHBoxLayout(ctrl)
         ctrl_layout.setContentsMargins(8, 2, 8, 4)
-        ctrl_layout.setSpacing(4)
+        ctrl_layout.setSpacing(6)
 
         self._repeat_btn = QPushButton()
         self._repeat_btn.setIcon(_icon("repeat_all"))
         self._repeat_btn.setIconSize(ICON_SZ)
         self._repeat_btn.setToolTip("列表循环")
-        self._repeat_btn.setFixedSize(20, 20)
+        self._repeat_btn.setFixedSize(24, 24)
         self._repeat_btn.setStyleSheet(
             "QPushButton{background:transparent;border:none;border-radius:3px;}"
             "QPushButton:hover{background:rgba(255,255,255,25);}"
         )
         self._repeat_btn.clicked.connect(self.repeat_clicked.emit)
-        ctrl_layout.addWidget(self._repeat_btn)
-
         ctrl_layout.addStretch()
+        ctrl_layout.addWidget(self._repeat_btn)
 
         self._vol_btn = QPushButton()
         self._vol_btn.setIcon(_icon("volume_high"))
         self._vol_btn.setIconSize(ICON_SZ)
         self._vol_btn.setToolTip("静音 / 取消静音")
-        self._vol_btn.setFixedSize(20, 20)
+        self._vol_btn.setFixedSize(24, 24)
         self._vol_btn.setStyleSheet(
             "QPushButton{background:transparent;border:none;border-radius:3px;}"
             "QPushButton:hover{background:rgba(255,255,255,25);}"
@@ -297,7 +369,7 @@ class TrackPopup(QWidget):
         self._vol_slider = QSlider(Qt.Orientation.Horizontal)
         self._vol_slider.setRange(0, 100)
         self._vol_slider.setValue(70)
-        self._vol_slider.setFixedWidth(44)
+        self._vol_slider.setFixedWidth(64)
         self._vol_slider.setStyleSheet(
             "QSlider::groove:horizontal{border:none;height:2px;"
             "background:rgba(200,200,215,45);border-radius:1px;}"
@@ -309,6 +381,7 @@ class TrackPopup(QWidget):
         )
         self._vol_slider.valueChanged.connect(self.volume_changed.emit)
         ctrl_layout.addWidget(self._vol_slider)
+        ctrl_layout.addStretch()
 
         self._controls_widget = ctrl
 
@@ -319,10 +392,55 @@ class TrackPopup(QWidget):
         painter.setBrush(QColor(24, 24, 32, 140))
         painter.drawRoundedRect(self.rect(), 6, 6)
 
+    def _visible_track_count(self, total: int) -> int:
+        return min(total, 7)
+
+    def _default_scroll_start(self, total: int, current_index: int) -> int:
+        visible = self._visible_track_count(total)
+        if total <= visible:
+            return 0
+        half = visible // 2
+        start = max(0, current_index - half)
+        return min(start, total - visible)
+
+    def _max_scroll_start(self) -> int:
+        return max(0, len(self._playlist) - 7)
+
     def set_tracks(self, playlist: list[str], current_index: int) -> None:
         """Rebuild the track list from playlist paths."""
+        playlist_changed = playlist != self._playlist
+        current_changed = current_index != self._current_index
         self._playlist = playlist
         self._current_index = current_index
+        if playlist_changed or current_changed:
+            self._scroll_start = self._default_scroll_start(len(playlist), current_index)
+        else:
+            self._scroll_start = min(self._scroll_start, self._max_scroll_start())
+        self._rebuild_track_labels()
+
+    def scroll_tracks(self, steps: int) -> None:
+        """Scroll the visible playlist window by wheel-style steps."""
+        if not self._playlist:
+            return
+        next_start = max(0, min(self._scroll_start + steps, self._max_scroll_start()))
+        if next_start == self._scroll_start:
+            return
+        self._scroll_start = next_start
+        self._rebuild_track_labels()
+
+    def wheelEvent(self, event) -> None:
+        delta = event.angleDelta().y()
+        if delta == 0:
+            super().wheelEvent(event)
+            return
+        steps = -1 if delta > 0 else 1
+        if self._above:
+            steps = -steps
+        self.scroll_tracks(steps)
+        event.accept()
+
+    def _rebuild_track_labels(self) -> None:
+        """Rebuild the track list from current playlist and scroll position."""
         for lbl in self._labels:
             self._layout.removeWidget(lbl)
             lbl.deleteLater()
@@ -330,51 +448,46 @@ class TrackPopup(QWidget):
         self._layout.removeWidget(self._sep)
         self._layout.removeWidget(self._controls_widget)
 
+        playlist = self._playlist
+        current_index = self._current_index
         total = len(playlist)
-        max_show = 8
-
-        if total <= max_show:
-            visible_indices = list(range(total))
-            overflow_count = 0
-        else:
-            visible = max_show - 1  # 7 songs + 1 overflow line
-            half = visible // 2
-            start = max(0, current_index - half)
-            end = min(total, start + visible)
-            start = max(0, end - visible)
-            visible_indices = list(range(start, end))
-            overflow_count = total - end
+        visible = self._visible_track_count(total)
+        start = max(0, min(self._scroll_start, self._max_scroll_start()))
+        end = min(total, start + visible)
+        visible_indices = list(range(start, end))
 
         # Build items: (text, track_index | None, is_current)
         items: list[tuple[str, int | None, bool]] = []
         for idx in visible_indices:
             name = os.path.basename(playlist[idx])
-            items.append((f"{idx + 1}. {name}", idx, idx == current_index))
+            text = f"{idx + 1}. {name}"
+            items.append((text, idx, idx == current_index))
 
-        if overflow_count > 0:
-            items.append((f"... 还有 {overflow_count} 首", None, False))
+        while len(items) < 7:
+            items.append(("", None, False))
 
         if self._above:
             items.reverse()
 
         for text, track_idx, is_current in items:
-            lbl = QLabel(text)
+            lbl = HoverMarqueeLabel(text)
+            lbl.setFixedHeight(24)
             if track_idx is None:
                 lbl.setEnabled(False)
                 lbl.setStyleSheet(
-                    "color: rgba(200,200,215,160); padding: 2px 8px; font-size: 10px;"
+                    "color: rgba(200,200,215,160); padding: 3px 8px; font-size: 12px;"
                 )
             else:
                 lbl.setProperty("track_index", track_idx)
                 lbl.setCursor(Qt.CursorShape.PointingHandCursor)
                 if is_current:
                     lbl.setStyleSheet(
-                        "color: rgba(220,220,235,220); padding: 2px 8px; font-size: 10px; "
+                        "color: rgba(220,220,235,220); padding: 3px 8px; font-size: 12px; "
                         "background: rgba(255,255,255,18); border-radius: 3px;"
                     )
                 else:
                     lbl.setStyleSheet(
-                        "color: rgba(200,200,215,160); padding: 2px 8px; font-size: 10px; "
+                        "color: rgba(200,200,215,160); padding: 3px 8px; font-size: 12px; "
                         "border-radius: 3px;"
                     )
                 lbl.installEventFilter(self)
@@ -389,7 +502,7 @@ class TrackPopup(QWidget):
             self._layout.addWidget(self._sep)
             self._layout.addWidget(self._controls_widget)
 
-        self.setFixedHeight(len(items) * 20 + 10 + 31)
+        self.setFixedHeight(len(items) * 24 + 10 + 35)
 
     # ── Control state helpers ──
 
@@ -425,14 +538,14 @@ class TrackPopup(QWidget):
                 idx = obj.property("track_index")
                 if idx != self._current_index:
                     obj.setStyleSheet(
-                        "color: rgba(220,220,235,200); padding: 2px 8px; font-size: 10px; "
+                        "color: rgba(220,220,235,200); padding: 3px 8px; font-size: 12px; "
                         "background: rgba(255,255,255,10); border-radius: 3px;"
                     )
             elif etype == QEvent.Type.Leave:
                 idx = obj.property("track_index")
                 if idx != self._current_index:
                     obj.setStyleSheet(
-                        "color: rgba(200,200,215,160); padding: 2px 8px; font-size: 10px; "
+                        "color: rgba(200,200,215,160); padding: 3px 8px; font-size: 12px; "
                         "border-radius: 3px;"
                     )
         return False
@@ -510,9 +623,10 @@ class MiniBar(QWidget):
     def __init__(self, player: MusicPlayer | None = None):
         super().__init__()
         self._player = player or MusicPlayer(self)
-        self._muted = False
-        self._pre_mute_volume = 0.7
-        self._volume = 70
+        self._settings = load_settings()
+        self._muted = self._settings.muted
+        self._volume = self._settings.volume
+        self._pre_mute_volume = max(0.0, self._settings.volume / 100.0)
         self._duration_ms = 0
         self._seeking = False
 
@@ -528,7 +642,7 @@ class MiniBar(QWidget):
         self._build_ui()
         self._connect_signals()
         self._setup_tray()
-        self._player.set_volume(0.7)
+        self._apply_loaded_settings()
 
     def _setup_window(self) -> None:
         self.setWindowTitle("Mini Player")
@@ -620,6 +734,25 @@ class MiniBar(QWidget):
             self._track_popup.mute_toggled.connect(self._on_vol_clicked)
         return self._track_popup
 
+    def _apply_loaded_settings(self) -> None:
+        if hasattr(self._player, "set_repeat_mode"):
+            self._player.set_repeat_mode(self._settings.repeat_mode)
+        self._player.set_volume(0 if self._muted else self._volume / 100.0)
+
+    def _settings_volume(self) -> int:
+        if self._muted:
+            return int(round(self._pre_mute_volume * 100))
+        return self._volume
+
+    def _save_player_settings(self) -> None:
+        save_settings(
+            PlayerSettings(
+                repeat_mode=self._player.repeat_mode,
+                volume=max(0, min(100, self._settings_volume())),
+                muted=self._muted,
+            )
+        )
+
     def _on_track_indicator_clicked(self) -> None:
         if len(self._player.playlist) == 0:
             return
@@ -651,6 +784,11 @@ class MiniBar(QWidget):
             w = w.parentWidget()
         return False
 
+    def _clear_drag_state(self) -> None:
+        self._drag_press_global = None
+        self._drag_window_start = None
+        self._drag_active = False
+
     def eventFilter(self, obj, event) -> bool:
         if not self._is_descendant(obj):
             return False
@@ -665,6 +803,9 @@ class MiniBar(QWidget):
                 self._drag_active = False
         elif etype == QEvent.Type.MouseMove:
             if self._drag_press_global is not None:
+                if not event.buttons() & Qt.MouseButton.LeftButton:
+                    self._clear_drag_state()
+                    return False
                 delta = event.globalPosition().toPoint() - self._drag_press_global
                 if self._drag_active:
                     self.move(self._drag_window_start + delta)
@@ -676,9 +817,7 @@ class MiniBar(QWidget):
         elif etype == QEvent.Type.MouseButtonRelease:
             if event.button() == Qt.MouseButton.LeftButton:
                 was_drag = self._drag_active
-                self._drag_press_global = None
-                self._drag_window_start = None
-                self._drag_active = False
+                self._clear_drag_state()
                 if was_drag:
                     return True
         return False
@@ -692,6 +831,7 @@ class MiniBar(QWidget):
 
         # Vinyl record visual
         self._vinyl_widget = VinylRecordWidget(self)
+        self._vinyl_widget.clicked.connect(self._on_play_clicked)
         layout.addWidget(self._vinyl_widget)
 
         # Prev
@@ -763,6 +903,7 @@ class MiniBar(QWidget):
     def _on_repeat_clicked(self) -> None:
         """Cycle repeat mode via the player engine."""
         self._player.cycle_repeat_mode()
+        self._save_player_settings()
 
     def _on_repeat_mode_changed(self, mode: int) -> None:
         if self._track_popup:
@@ -786,40 +927,57 @@ class MiniBar(QWidget):
             self._volume = 0
             self._player.set_volume(0)
             self._update_volume_icon(0)
+        self._save_player_settings()
 
     def _on_vol_slider_changed(self, value: int) -> None:
         self._volume = value
         vol = value / 100.0
         if vol > 0 and self._muted:
             self._muted = False
+            self._pre_mute_volume = vol
         elif vol == 0 and not self._muted:
             self._muted = True
+        elif vol > 0:
+            self._pre_mute_volume = vol
         self._player.set_volume(vol)
         self._update_volume_icon(value)
+        self._save_player_settings()
 
     def _on_seek_press(self) -> None:
         self._seeking = True
 
     def _on_seek_release(self) -> None:
         self._seeking = False
-        self._player.seek(int(self._duration_ms * self._progress.value() / 1000.0))
+        pos_ms = self._position_from_slider()
+        self._sync_progress_display(pos_ms)
+        self._player.seek(pos_ms)
 
     def _on_progress_value_changed(self, value: int) -> None:
         if self._seeking and self._duration_ms > 0:
-            pos_ms = int(self._duration_ms * value / 1000.0)
-            self._time_label.setText(
-                f"{format_time(pos_ms)} / {format_time(self._duration_ms)}"
-            )
+            self._sync_progress_display(self._position_from_slider(value))
 
-    def _on_position(self, pos_ms: int) -> None:
-        if self._seeking or self._duration_ms <= 0:
+    def _position_from_slider(self, value: int | None = None) -> int:
+        if self._duration_ms <= 0:
+            return 0
+        slider_value = self._progress.value() if value is None else value
+        slider_value = max(0, min(slider_value, self._progress.maximum()))
+        return min(self._duration_ms, int(self._duration_ms * slider_value / self._progress.maximum()))
+
+    def _sync_progress_display(self, pos_ms: int) -> None:
+        if self._duration_ms <= 0:
             return
+        pos_ms = max(0, min(pos_ms, self._duration_ms))
         self._progress.blockSignals(True)
-        self._progress.setValue(int(pos_ms / self._duration_ms * 1000))
+        self._progress.setValue(int(pos_ms / self._duration_ms * self._progress.maximum()))
         self._progress.blockSignals(False)
         self._time_label.setText(
             f"{format_time(pos_ms)} / {format_time(self._duration_ms)}"
         )
+
+    def _on_position(self, pos_ms: int) -> None:
+        if self._seeking or self._duration_ms <= 0:
+            return
+        self._sync_progress_display(pos_ms)
 
     def _on_duration(self, duration_ms: int) -> None:
         self._duration_ms = duration_ms
